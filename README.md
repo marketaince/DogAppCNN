@@ -1,3 +1,3 @@
 # Dog App CNN
 
-Udacity Deep Learning Course - Project.
+Udacity Deep Learning Nanodegree Program - Project.
