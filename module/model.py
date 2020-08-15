@@ -190,10 +190,10 @@ transfer_model = defineTransferModel()
 # -------------- #
 
 transfer_model.fit_generator(
-        train_generator,
+        train_iterator,
         steps_per_epoch=None,
         epochs=nr_epochs,
-        validation_data=validation_generator,
+        validation_data=validation_iterator,
         validation_steps=None)
 transfer_model.save_weights('transfer_model.h5')
 
