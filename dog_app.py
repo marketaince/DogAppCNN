@@ -17,7 +17,8 @@ from configs.config import (
     NR_EPOCHS,
     NR_CLASSES,
     LEARNING_RATE,
-    BATCH_SIZE
+    TRAINING_BATCH_SIZE,
+    VAL_TEST_BATCH_SIZE
 )
 
 # ----------------- #
@@ -43,4 +44,5 @@ if __name__ == '__main__':
     # K.tensorflow_backend._get_available_gpus()
     DogApp = DogAppCNN(ResNet50_model)
     model = DogApp.define_transfer_model(NR_CLASSES)
-    model = DogApp.train(model, NR_EPOCHS, LEARNING_RATE, BATCH_SIZE)
+    model = DogApp.train(model, NR_EPOCHS, LEARNING_RATE, TRAINING_BATCH_SIZE, VAL_TEST_BATCH_SIZE)
+    results = DogApp.test(model, VAL_TEST_BATCH_SIZE)

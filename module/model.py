@@ -8,13 +8,20 @@ MODEL TRAINING SCRIPT
 
 import keras
 import matplotlib.pyplot as plt
-from keras.layers import Dense, Dropout
+from keras.layers import Dense, Dropout, Activation
 from keras.preprocessing.image import ImageDataGenerator
+from keras.models import model_from_json, Model
 from PIL import ImageFile
 import numpy as np
 from os import path
 
-from configs.config import IMAGE_SIZE, RANDOM_ROTATION
+from configs.config import (
+    IMAGE_SIZE,
+    TRAIN_MEAN_DEFAULT,
+    TRAIN_STD_DEFAULT,
+    USE_DEFAULT_MEAN_STD,
+    # RANDOM_ROTATION
+)
 
 # ------------- #
 # Working Paths #
@@ -59,7 +66,7 @@ def precalculate_train_mean_and_std():
         train_dir,
         batch_size=167,
         target_size=(IMAGE_SIZE, IMAGE_SIZE),
-        shuffle=True,
+        shuffle=False,
         class_mode="categorical")
 
     # Lists to collect means and stds for all images.
@@ -70,10 +77,10 @@ def precalculate_train_mean_and_std():
     for batch in range(len(pre_iterator)):
         image, label = next(pre_iterator)
         arr = np.array(image)
-        mean = np.mean(arr, axis=(0, 1, 2))
-        std = np.std(arr, axis=(0, 1, 2))
-        means.append(mean)
-        stds.append(std)
+        mean = np.mean(arr, axis=(1, 2))
+        std = np.std(arr, axis=(1, 2))
+        means.extend(mean)
+        stds.extend(std)
 
     # Get mean of means.
     train_mean = np.mean(means, axis=0)
@@ -84,24 +91,38 @@ def precalculate_train_mean_and_std():
     return train_mean, train_std
 
 
+# Standardize and Normalize images with precalculated means and averages - helper
 def stand_norm_data(x, channels_means, channels_stds):
     x = x - channels_means
     x = x / channels_stds
     return x
 
 
+# wrapper function around generator to standardize and normalize data - helper
+# Not a good solution combined with fit_generator() method
 def stand_norm_generator(generator, channels_means, channels_stds):
     for x, y in generator:
         yield stand_norm_data(x, channels_means, channels_stds), y
 
 
-if path.isfile('train_mean.csv') and path.isfile('train_std.csv'):
+# Get mean and std of training set
+if USE_DEFAULT_MEAN_STD:
+    TRAIN_MEAN = TRAIN_MEAN_DEFAULT
+    TRAIN_STD = TRAIN_STD_DEFAULT
+elif path.isfile('train_mean.csv') and path.isfile('train_std.csv'):
     TRAIN_MEAN = np.loadtxt('train_mean.csv', delimiter=';')
     TRAIN_STD = np.loadtxt('train_std.csv', delimiter=';')
 else:
     TRAIN_MEAN, TRAIN_STD = precalculate_train_mean_and_std()
     np.savetxt('train_mean.csv', TRAIN_MEAN, delimiter=';')
     np.savetxt('train_std.csv', TRAIN_STD, delimiter=';')
+
+
+# Standardize and Normalize one image - helper
+def preprocess(one_image):
+    one_image = one_image - TRAIN_MEAN
+    one_image = one_image / TRAIN_STD
+    return one_image
 
 
 # ------------- #
@@ -111,7 +132,6 @@ else:
 class DogAppCNN:
 
     def __init__(self, pretrained_model_dict):
-        self._test = 1
 
         # Extract pretrained model properties
         self.pretrained_model_dict = pretrained_model_dict
@@ -120,27 +140,35 @@ class DogAppCNN:
 
         # Train image generator with image augmentation
         self.train_image_generator = ImageDataGenerator(
-            rotation_range=RANDOM_ROTATION,
+            # rotation_range=RANDOM_ROTATION,
             rescale=1. / 255,
-            zoom_range=0.2,
-            horizontal_flip=True,
-            fill_mode='nearest'
+            # zoom_range=0.2,
+            # horizontal_flip=True,
+            fill_mode='nearest',
+            preprocessing_function=self.preprocess_image
         )
 
         # Validation and test  image generator
         self.validation_and_test_image_generator = ImageDataGenerator(
             rescale=1. / 255,
-            fill_mode='nearest'
+            fill_mode='nearest',
+            preprocessing_function=self.preprocess_image
         )
 
+    # Image preprocessing passed to generators
+    @staticmethod
+    def preprocess_image(one_image):
+        return stand_norm_data(one_image, TRAIN_MEAN, TRAIN_STD)
+
+    # Image iterator
     @staticmethod
     def create_iterator(directory, generator, batch_size):
-        iterator = stand_norm_generator(generator.flow_from_directory(
+        iterator = generator.flow_from_directory(
             directory,
             batch_size=batch_size,
             target_size=(IMAGE_SIZE, IMAGE_SIZE),
             shuffle=True,
-            class_mode="categorical"), TRAIN_MEAN, TRAIN_STD)
+            class_mode="categorical")
 
         return iterator
 
@@ -150,61 +178,112 @@ class DogAppCNN:
 
     # Define model architecture with custom dense layers
     def define_transfer_model(self, output_classes):
+
         # Dense layers
-        dense_layer1 = Dense(1024, activation="relu")
-        dropout_layer1 = Dropout(0.5)
+        dense_1 = Dense(1024)(self.pretrained_model.output)
+        activ_1 = Activation('relu')(dense_1)
+        dropout_1 = Dropout(0.5)(activ_1)
 
-        dense_layer2 = Dense(512, activation="relu")
-        dropout_layer2 = Dropout(0.5)
+        dense_2 = Dense(512)(dropout_1)
+        activ_2 = Activation('relu')(dense_2)
+        dropout_2 = Dropout(0.5)(activ_2)
 
-        output_layer = Dense(output_classes, activation="softmax")
+        model_output = Dense(output_classes, activation="softmax")(dropout_2)
+
+        # Compose model
+        final_model = Model(inputs=self.pretrained_model.input, output=model_output)
 
         # Freeze layers of pretrained model
         for layer in self.pretrained_model.layers:
             layer.trainable = False
-
-        # Compose model
-        final_model = keras.Sequential([
-            self.pretrained_model,
-            dense_layer1,
-            dropout_layer1,
-            dense_layer2,
-            dropout_layer2,
-            output_layer
-        ])
 
         # Compile model
         final_model.compile(optimizer='adam',
                             loss='categorical_crossentropy',
                             metrics=['accuracy'])
 
+        print('Compiled model summary:')
+        final_model.summary()
+
         return final_model
+
+    # ----------------------- #
+    # Load Model Architecture #
+    # ----------------------- #
+
+    # Load if model exists
+    def load_existing_transfer_model(self, epochs, lr, batches):
+
+        # Construct model name
+        model_name = f'{self.name}_epochs_{epochs}_lr_{lr}_batches_{batches}'
+
+        # Verify that model and weights are in directory
+        if path.isfile(f'{model_name}.json') and path.isfile(f'{model_name}.h5'):
+
+            # Load model from json
+            model_file = open(f'{model_name}.json', 'r')
+            model_json = model_file.read()
+            model_file.close()
+            loaded_model = model_from_json(model_json)
+
+            # Load model weights
+            loaded_model.load_weights(f'{model_name}.h5')
+
+            # Compile model
+            loaded_model.compile(optimizer='adam',
+                                 loss='categorical_crossentropy',
+                                 metrics=['accuracy'])
+
+            return loaded_model
+
+        else:
+            print(f"Can't find model with name: {model_name}!")
 
     # -------------- #
     # Model Training #
     # -------------- #
 
-    def train(self, train_model, epochs, lr, batches):
-        train_iterator = self.create_iterator(train_dir, self.train_image_generator, batches)
-        validation_iterator = self.create_iterator(valid_dir, self.validation_and_test_image_generator, batches)
+    def train(self, train_model, epochs, lr, train_batches, valid_batches):
 
+        # Create iterator for training and validation
+        train_iterator = self.create_iterator(train_dir, self.train_image_generator, train_batches)
+        validation_iterator = self.create_iterator(valid_dir, self.validation_and_test_image_generator, valid_batches)
+
+        # Train model
         train_model.fit_generator(
             train_iterator,
-            steps_per_epoch=None,
             epochs=epochs,
-            validation_data=validation_iterator,
-            validation_steps=None)
+            validation_data=validation_iterator)
 
-        train_model.save_weights(f'{self.name}_epochs_{epochs}_lr_{lr}_batches_{batches}.h5')
+        # Save model a json file
+        train_model_json = train_model.to_json()
+        with open(f'{self.name}_epochs_{epochs}_lr_{lr}_batches_{train_batches}.json', 'w') as json_file:
+            json_file.write(train_model_json)
+
+        # Save model weights
+        train_model.save_weights(f'{self.name}_epochs_{epochs}_lr_{lr}_batches_{train_batches}.h5')
 
         return train_model
 
+    # ------------- #
+    # Model Testing #
+    # ------------- #
+
     def test(self, test_model, batches):
+
+        # Create iterator for test directory
         test_iterator = self.create_iterator(test_dir, self.validation_and_test_image_generator, batches)
 
-        test_model.predict(
+        # Evaluate model
+        evaluation = test_model.evaluate_generator(
             test_iterator
         )
+
+        results = {f'test_{test_model.metrics_names[i]}': result for i, result in enumerate(evaluation)}
+
+        print(f'test_loss: {round(results["test_loss"], 4)} - test_accuracy: {round(results["test_accuracy"], 4)}')
+
+        return results
 
     @staticmethod
     def transform_train_picture(picture):
