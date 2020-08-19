@@ -341,9 +341,9 @@ class DogAppCNN:
 
         image_processed = preprocess(image_array / 255).reshape(1, 224, 224, 3)
 
-        _, prediction_array, prob_array = self.predict_image_array(image_processed, nr_epochs, lr_rate, batches)
+        prediction_labels, prediction_array, prob_array = self.predict_image_array(image_processed, nr_epochs, lr_rate, batches)
 
-        return prediction_array[0], (prob_array[0] * 100).round(1)
+        return prediction_labels[0], prediction_array[0], (prob_array[0] * 100).round(1)
 
     @staticmethod
     def predict_breed_transfer(img_path):
