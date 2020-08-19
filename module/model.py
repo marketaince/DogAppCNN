@@ -14,13 +14,14 @@ from keras.models import model_from_json, Model
 from PIL import ImageFile
 import numpy as np
 from os import path
+import json
 
 from configs.config import (
     IMAGE_SIZE,
     TRAIN_MEAN_DEFAULT,
     TRAIN_STD_DEFAULT,
     USE_DEFAULT_MEAN_STD,
-    # RANDOM_ROTATION
+    RANDOM_ROTATION
 )
 
 # ------------- #
@@ -140,10 +141,10 @@ class DogAppCNN:
 
         # Train image generator with image augmentation
         self.train_image_generator = ImageDataGenerator(
-            # rotation_range=RANDOM_ROTATION,
+            rotation_range=RANDOM_ROTATION,
             rescale=1. / 255,
-            # zoom_range=0.2,
-            # horizontal_flip=True,
+            zoom_range=0.2,
+            horizontal_flip=True,
             fill_mode='nearest',
             preprocessing_function=self.preprocess_image
         )
@@ -154,6 +155,8 @@ class DogAppCNN:
             fill_mode='nearest',
             preprocessing_function=self.preprocess_image
         )
+
+    #         self.indices = self.get_indices()
 
     # Image preprocessing passed to generators
     @staticmethod
@@ -171,6 +174,14 @@ class DogAppCNN:
             class_mode="categorical")
 
         return iterator
+
+    # Get training indices
+    def get_indices(self):
+
+        train_iterator = self.create_iterator(train_dir, self.train_image_generator, 10)
+        indices = train_iterator.class_indices
+
+        return {str(label): ' '.join([i.capitalize() for i in name[4:].split('_')]) for name, label in indices.items()}
 
     # ------------------ #
     # Model Architecture #
@@ -224,6 +235,10 @@ class DogAppCNN:
             model_file = open(f'{model_name}.json', 'r')
             model_json = model_file.read()
             model_file.close()
+
+            # get indices
+            indices = json.loads(model_json)["config"]["indices"]
+
             loaded_model = model_from_json(model_json)
 
             # Load model weights
@@ -234,7 +249,7 @@ class DogAppCNN:
                                  loss='categorical_crossentropy',
                                  metrics=['accuracy'])
 
-            return loaded_model
+            return loaded_model, indices
 
         else:
             print(f"Can't find model with name: {model_name}!")
@@ -255,8 +270,20 @@ class DogAppCNN:
             epochs=epochs,
             validation_data=validation_iterator)
 
-        # Save model a json file
+        # Create json from model
         train_model_json = train_model.to_json()
+
+        # Convert to dict
+        model_dict = json.loads(train_model_json)
+
+        # Modify config with model name and indices
+        model_dict["config"]["name"] = f'{self.name}_epochs_{epochs}_lr_{lr}_batches_{train_batches}'
+        model_dict["config"]["indices"] = self.get_indices()
+
+        # dump back to json
+        train_model_json = json.dumps(model_dict)
+
+        # Save model as json
         with open(f'{self.name}_epochs_{epochs}_lr_{lr}_batches_{train_batches}.json', 'w') as json_file:
             json_file.write(train_model_json)
 
@@ -288,6 +315,35 @@ class DogAppCNN:
     @staticmethod
     def transform_train_picture(picture):
         pass
+
+    def predict_image_array(self, image_array, nr_epochs, lr_rate, batches):
+        model, indices = self.load_existing_transfer_model(nr_epochs, lr_rate, batches)
+        predictions = model.predict(image_array)
+        labels = np.fliplr(predictions.argsort(axis=1)[:, -3:])
+        probability = np.fliplr(np.sort(predictions, axis=1)[:, -3:])
+
+        get_name = lambda x: indices[str(x)]
+        get_name_vectorize = np.vectorize(get_name)
+
+        predictions = get_name_vectorize(labels)
+
+        return labels, predictions, probability
+
+    def predict_image_from_path(self, image_path, nr_epochs, lr_rate, batches):
+        image_loaded = keras.preprocessing.image.load_img(
+            image_path,
+            color_mode="rgb",
+            target_size=(IMAGE_SIZE, IMAGE_SIZE),
+            interpolation="nearest"
+        )
+
+        image_array = keras.preprocessing.image.img_to_array(image_loaded)
+
+        image_processed = preprocess(image_array / 255).reshape(1, 224, 224, 3)
+
+        _, prediction_array, prob_array = self.predict_image_array(image_processed, nr_epochs, lr_rate, batches)
+
+        return prediction_array[0], (prob_array[0] * 100).round(1)
 
     @staticmethod
     def predict_breed_transfer(img_path):

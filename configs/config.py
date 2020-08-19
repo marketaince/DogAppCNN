@@ -18,7 +18,7 @@ NR_CLASSES = 133
 # Training Settings #
 # ----------------- #
 
-TRAINING_BATCH_SIZE = 200
+TRAINING_BATCH_SIZE = 30
 VAL_TEST_BATCH_SIZE = 100
 LEARNING_RATE = 0.001
 NR_EPOCHS = 10
@@ -35,4 +35,4 @@ TRAIN_MEAN_DEFAULT = np.array([0.485, 0.456, 0.406])
 TRAIN_STD_DEFAULT = np.array([0.229, 0.224, 0.225])
 
 # use default values
-USE_DEFAULT_MEAN_STD = True
+USE_DEFAULT_MEAN_STD = False
