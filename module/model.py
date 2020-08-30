@@ -8,9 +8,11 @@ MODEL TRAINING SCRIPT
 
 import keras
 import matplotlib.pyplot as plt
-from keras.layers import Dense, Dropout, Activation
-from keras.preprocessing.image import ImageDataGenerator
+from keras.layers import Dense, Dropout, Activation, Conv2D, MaxPooling2D
+from keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
+# from keras.models import Model
 from keras.models import model_from_json, Model
+# from tensorflow.keras.models import model_from_json
 from PIL import ImageFile
 import numpy as np
 from os import path
@@ -43,7 +45,7 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 # Display image
 def display_image(img_path):
-    image = keras.preprocessing.image.load_img(
+    image = load_img(
         img_path,
         color_mode="rgb",
         target_size=(IMAGE_SIZE, IMAGE_SIZE),
@@ -238,8 +240,10 @@ class DogAppCNN:
 
             # get indices
             indices = json.loads(model_json)["config"]["indices"]
+            print(indices)
 
             loaded_model = model_from_json(model_json)
+            loaded_model.summary()
 
             # Load model weights
             loaded_model.load_weights(f'{model_name}.h5')
@@ -257,6 +261,26 @@ class DogAppCNN:
     # -------------- #
     # Model Training #
     # -------------- #
+
+    def save_train(self, train_model, epochs, lr, train_batches):
+
+        train_model_json = train_model.to_json()
+
+        # Convert to dict
+        model_dict = json.loads(train_model_json)
+
+        # Modify config with model name and indices
+        model_dict["config"]["name"] = f'{self.name}_epochs_{epochs}_lr_{lr}_batches_{train_batches}'
+        model_dict["config"]["indices"] = self.get_indices()
+
+        # dump back to json
+        train_model_json = json.dumps(model_dict)
+
+        # Save model as json
+        with open(f'{self.name}_epochs_{epochs}_lr_{lr}_batches_{train_batches}.json', 'w') as json_file:
+            json_file.write(train_model_json)
+
+
 
     def train(self, train_model, epochs, lr, train_batches, valid_batches):
 
@@ -330,18 +354,19 @@ class DogAppCNN:
         return labels, predictions, probability
 
     def predict_image_from_path(self, image_path, nr_epochs, lr_rate, batches):
-        image_loaded = keras.preprocessing.image.load_img(
+        image_loaded = load_img(
             image_path,
             color_mode="rgb",
             target_size=(IMAGE_SIZE, IMAGE_SIZE),
             interpolation="nearest"
         )
 
-        image_array = keras.preprocessing.image.img_to_array(image_loaded)
+        image_array = img_to_array(image_loaded)
 
         image_processed = preprocess(image_array / 255).reshape(1, 224, 224, 3)
 
-        prediction_labels, prediction_array, prob_array = self.predict_image_array(image_processed, nr_epochs, lr_rate, batches)
+        prediction_labels, prediction_array, prob_array = self.predict_image_array(image_processed, nr_epochs, lr_rate,
+                                                                                   batches)
 
         return prediction_labels[0], prediction_array[0], (prob_array[0] * 100).round(1)
 
