@@ -143,6 +143,7 @@ old_results/
 images/
 haarcascades/
 data/
+Udacity_Nanodegree/
 
 # file types
 *.csv
