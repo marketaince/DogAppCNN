@@ -1,0 +1,17 @@
+.ipynb_checkpoints/
+cofigs/
+data/
+DogAppDeploy/
+images/
+module/
+old_results/
+resources/
+test_images/
+Udacity_Nanodegree/
+
+*.ipynb
+*.md
+*.csv
+*.gitignore
+
+train.py
