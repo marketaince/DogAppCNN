@@ -136,3 +136,18 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# Folders
+test_images/
+old_results/
+images/
+haarcascades/
+data/
+
+# file types
+*.csv
+*.pt
+*.zip
+*.jpg
+*.png
+
