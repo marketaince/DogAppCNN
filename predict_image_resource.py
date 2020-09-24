@@ -1,5 +1,5 @@
 """
-Resource for Dog App Predictions
+DOG APP - RESOURCE FOR PREDICTING AN IMAGE
 """
 
 # ------- #
@@ -24,6 +24,11 @@ IMAGE_SIZE = (224, 224)
 # -------------------- #
 
 def stand_norm_image(one_image):
+    """
+    Function to standardize and normalize an image.
+    :param one_image: Image transformed to Numpy array.
+    :return: Normalized and standardized Numpy array.
+    """
     # Move mean to 0
     one_image = one_image - TRAIN_MEAN
 
@@ -34,6 +39,11 @@ def stand_norm_image(one_image):
 
 
 def process_pil_image(one_image):
+    """
+    Function to process PIL image
+    :param one_image: Pil image.
+    :return: Image transformed to numpy array
+    """
     # Get image width and height
     width = one_image.size[0]
     height = one_image.size[1]
@@ -62,7 +72,12 @@ def process_pil_image(one_image):
     return image_processed
 
 
-def load_model(model_name):
+def load_model(model_name: str):
+    """
+    Function to load model.
+    :param model_name: Path to model to be loaded.
+    :return: Keras model, Dictionary with classes.
+    """
     # Load model from json
     model_file = open(f'{model_name}.json', 'r')
     model_json = model_file.read()
@@ -86,6 +101,13 @@ def load_model(model_name):
 
 
 def predict_dog_breeds(model, indices, image):
+    """
+    Function to predict dog breed of an image.
+    :param model: Trained keras model.
+    :param indices: Dictionary with dog breed classes.
+    :param image: Image transformed to Numpy array
+    :return: Dictionary with three most probable dog breed classes
+    """
     # Get prediction for image
     predictions = model.predict(image)
 
@@ -107,6 +129,12 @@ def predict_dog_breeds(model, indices, image):
 
 
 def predict_pipeline(img, model_name):
+    """
+
+    :param img:
+    :param model_name:
+    :return:
+    """
     # Process image
     img_processes = process_pil_image(img)
 

@@ -1,5 +1,5 @@
 """
-DOG APP - MAIN SCRIPT
+DOG APP - MAIN TRAINING SCRIPT
 """
 
 # ------- #
@@ -9,7 +9,6 @@ DOG APP - MAIN SCRIPT
 import tensorflow as tf
 from keras.applications.resnet50 import ResNet50
 from keras.applications.vgg16 import VGG16
-# from keras import backend as K
 
 
 from module.model import DogAppCNN
@@ -49,8 +48,15 @@ VGG16_model = {
 if __name__ == '__main__':
     print(tf.config.list_physical_devices('GPU'))
     print(tf.test.is_built_with_cuda())
-    # K.tensorflow_backend._get_available_gpus()
+
+    # Instantiate DogAppCnn class with pretrained VGG16
     DogApp = DogAppCNN(VGG16_model)
+
+    # Create model (redefine classifier part)
     model = DogApp.define_transfer_model(NR_CLASSES)
+
+    # Train model
     model = DogApp.train(model, NR_EPOCHS, LEARNING_RATE, TRAINING_BATCH_SIZE, VAL_TEST_BATCH_SIZE)
+
+    # Test model
     results = DogApp.test(model, VAL_TEST_BATCH_SIZE)

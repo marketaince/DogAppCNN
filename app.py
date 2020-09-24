@@ -34,4 +34,4 @@ api.add_resource(PredictImage, '/predict')
 # ------- #
 
 if __name__ == '__main__':
-    app.run(debug=True, threaded=False)
+    app.run(port=5000, debug=True, threaded=False)

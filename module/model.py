@@ -1,12 +1,11 @@
 """
-MODEL TRAINING SCRIPT
+DOG APP - CLASS WITH CNN - FOR TRAINING, TESTING, PREDICTION
 """
 
 # ------- #
 # Imports #
 # ------- #
 
-import keras
 import matplotlib.pyplot as plt
 from keras.layers import Dense, Dropout, Activation, Conv2D, MaxPooling2D
 from keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
@@ -44,7 +43,12 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 # Display image
-def display_image(img_path):
+def display_image(img_path: str):
+    """
+    Function to display image.
+    :param img_path: String with image path.
+    :return: PIL image.
+    """
     image = load_img(
         img_path,
         color_mode="rgb",
@@ -59,12 +63,18 @@ def display_image(img_path):
 
 # Calculate mean and std for training set
 def precalculate_train_mean_and_std():
-    # Validation and test  image generator
+    """
+    Function to calculate mean and std of three color channels of images in training data.
+    :return: Numpy arrays with means and std.
+    """
+
+    # Image generator
     pre_generator = ImageDataGenerator(
         rescale=1. / 255,
         fill_mode='nearest'
     )
 
+    # Image iterator
     pre_iterator = pre_generator.flow_from_directory(
         train_dir,
         batch_size=167,
@@ -96,6 +106,14 @@ def precalculate_train_mean_and_std():
 
 # Standardize and Normalize images with precalculated means and averages - helper
 def stand_norm_data(x, channels_means, channels_stds):
+    """
+
+    :param x: Image transformed to Numpy array.
+    :param channels_means: Numpy array with means.
+    :param channels_stds: Numpy array with stds.
+    :return: Normalized and Standardized Numpy array
+    """
+
     x = x - channels_means
     x = x / channels_stds
     return x
