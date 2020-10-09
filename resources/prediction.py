@@ -1,3 +1,7 @@
+"""
+DOG APP - SCRIPT FOR PREDICTING IMAGE WITH DogAppCNN class
+"""
+
 from flask_restful import Resource, reqparse
 from flask import request
 from PIL import Image
