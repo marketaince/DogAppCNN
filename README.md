@@ -4,10 +4,9 @@ This work is an extension of one of projects required to obtain [Deep Learning N
 *Submitted: Aug 2019*
 
 ## Objective
-The purpose of this project is to create a neural network that is capable of generating **new** images of human faces.
+The purpose of this project is to create a neural network that can classify dog breeds from a provided image.
 
 ### Methods Used
-* Generative Adversarial Network (**GAN**)
 * Convolutional Neural Network (**CNN**)
 
 ### Technologies
@@ -19,6 +18,8 @@ The purpose of this project is to create a neural network that is capable of gen
 ## Project Description
 GAN
 
+| ![Image of Dog App Frontend](<src/cover_image.jpg>) |
+| --- |
 
 
 ## Contact

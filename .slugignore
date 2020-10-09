@@ -8,6 +8,7 @@ old_results/
 resources/
 test_images/
 Udacity_Nanodegree/
+src/
 
 *.ipynb
 *.md
@@ -17,3 +18,4 @@ Udacity_Nanodegree/
 train.py
 
 dev-requirements.txt
+cover_image.jpg
